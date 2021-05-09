@@ -1,6 +1,7 @@
 import bpy
 import bmesh
-from mathutils import Vector
+from mathutils import Vector, Matrix
+from math import radians
 import random
 import sys
 import os
@@ -52,6 +53,10 @@ last_edges = bm.edges
 prev_radius = base_radius
 to_pull_down = []
 should_terminate = False
+angle = radians(random.uniform(-5, 5))
+
+rot_matrix = Matrix.Rotation(angle, 4, "Z")
+bmesh.ops.rotate(bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot_matrix, verts=bm.verts)
 
 # Bottom pull down
 for j in range(len(bm.verts)):
@@ -84,6 +89,10 @@ for i in range(1, layers+1):
     scale = Vector((scale_factor, scale_factor, 1))
     bmesh.ops.scale(bm, vec=scale, verts=translate_verts)
     
+#    rot_matrix = Matrix.Rotation(angle, 4, "Z")
+#    bmesh.ops.rotate(bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot_matrix, verts=translate_verts)
+#    
+    angle = radians(random.uniform(-45, 45))
     if i != layers:
         # Extrude out
         last_edges = [e for e in extruded['geom'] if isinstance(e, bmesh.types.BMEdge)]
@@ -94,7 +103,10 @@ for i in range(1, layers+1):
         scale_factor = 1/dr
         scale = Vector((scale_factor, scale_factor, 1))
         bmesh.ops.scale(bm, vec=scale, verts=translate_verts)
-        
+       
+        rot_matrix = Matrix.Rotation(angle, 4, "Z")
+        bmesh.ops.rotate(bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot_matrix, verts=translate_verts)
+            
         # Choose to bring down
         for j in range(len(translate_verts)):
             even_odd = random.choice([0, 1])
@@ -103,15 +115,14 @@ for i in range(1, layers+1):
                 
         last_edges = [e for e in extruded['geom'] if isinstance(e, bmesh.types.BMEdge)]
         prev_radius = outer_radius
-    else:
-        print("last")
-       
+    
+    
     if should_terminate:
         break
 
 # Actually bring down
 for vert in to_pull_down:
-    dz = random.uniform(0.1, 0.3) * height / layers
+    dz = random.uniform(0.1, 0.15) * height / layers
     down = Vector((0, 0, -dz))
     bmesh.ops.translate(bm, vec=down, verts=[vert])
 
