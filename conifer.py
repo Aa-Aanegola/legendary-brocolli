@@ -16,7 +16,7 @@ bpy.ops.object.delete(use_global=False, confirm=False)
 # Tree Hyperparameters
 height = 20
 base_radius = 5
-layers = 8
+layers = 10
 low_polyness = 10
 seed = time.time()
 drop_off = 0.7
@@ -62,7 +62,7 @@ bmesh.ops.rotate(bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot_matrix, verts=bm.v
 for j in range(len(bm.verts)):
         even_odd = random.choice([0, 1])
         if j%2 == even_odd:
-            to_pull_down.append(bm.verts[j])
+            to_pull_down.append((bm.verts[j], 0))
 
 for i in range(1, layers+1):
     outer_radius = (((height - layer_list[i]) / height) ** drop_off) * base_radius
@@ -78,8 +78,8 @@ for i in range(1, layers+1):
     translate_verts = [v for v in extruded['geom'] if isinstance(v, bmesh.types.BMVert)]
     
     
-    up = Vector((random.uniform(-0.1, 0.1)*base_radius, 
-                 random.uniform(-0.1, 0.1)*base_radius, 
+    up = Vector((random.uniform(-0.1, 0.1)*base_radius/i, 
+                 random.uniform(-0.1, 0.1)*base_radius/i, 
                  layer_list[i]-layer_list[i-1]))
     bmesh.ops.translate(bm, vec=up, verts=translate_verts)
     
@@ -111,7 +111,7 @@ for i in range(1, layers+1):
         for j in range(len(translate_verts)):
             even_odd = random.choice([0, 1])
             if j%2 == even_odd:
-                to_pull_down.append(translate_verts[j])
+                to_pull_down.append((translate_verts[j], i))
                 
         last_edges = [e for e in extruded['geom'] if isinstance(e, bmesh.types.BMEdge)]
         prev_radius = outer_radius
@@ -122,9 +122,10 @@ for i in range(1, layers+1):
 
 # Actually bring down
 for vert in to_pull_down:
-    dz = random.uniform(0.1, 0.15) * height / layers
+    exp = 2*(1+vert[1])/layers
+    dz = (random.uniform(0.1, 0.15)**exp) * (height / layers)
     down = Vector((0, 0, -dz))
-    bmesh.ops.translate(bm, vec=down, verts=[vert])
+    bmesh.ops.translate(bm, vec=down, verts=[vert[0]])
 
 
 # Remove doubles
@@ -150,6 +151,7 @@ height *= 0.2
 base_radius *= 0.2
 layers = 3
 low_polyness = 8
+max_growth = 1.5
 color_hex = "A52A2A"
 color = [int(color_hex[0:2], 16)/255,
          int(color_hex[2:4], 16)/255,
@@ -185,7 +187,10 @@ for i in range(1, layers+1):
     
     # Scale up
     dr = 1 + random.uniform(0.10, 0.15)
+    if prev_radius/base_radius > max_growth:
+        dr = 1
     scale = Vector((dr, dr, 1))
+    prev_radius *= dr
     bmesh.ops.scale(bm, vec=scale, verts=translate_verts)
     
     last_edges = [e for e in extruded['geom'] if isinstance(e, bmesh.types.BMEdge)]
