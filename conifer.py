@@ -9,7 +9,7 @@ import time
 
 from random import randrange
 
-# Delete default cube
+# Delete everything on screen
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False, confirm=False)
 
@@ -19,8 +19,9 @@ base_radius = 5
 layers = 10
 low_polyness = 10
 seed = time.time()
-drop_off = 0.7
+drop_off = 0.5
 tilt = 0.2
+trunk_scale = 0.2
 color_hex = "4EB036"
 color = [int(color_hex[0:2], 16)/255,
          int(color_hex[2:4], 16)/255,
@@ -62,7 +63,7 @@ bmesh.ops.rotate(bm, cent=Vector((0.0, 0.0, 0.0)), matrix=rot_matrix, verts=bm.v
 for j in range(len(bm.verts)):
         even_odd = random.choice([0, 1])
         if j%2 == even_odd:
-            to_pull_down.append((bm.verts[j], 0))
+            to_pull_down.append((bm.verts[j], 1))
 
 for i in range(1, layers+1):
     outer_radius = (((height - layer_list[i]) / height) ** drop_off) * base_radius
@@ -130,6 +131,9 @@ for vert in to_pull_down:
 
 # Remove doubles
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
+
+# Move the mesh up
+bmesh.ops.translate(bm, vec=Vector((0, 0, height*trunk_scale)), verts=bm.verts)
     
 # Finish up, write the bmesh into a new mesh
 me = bpy.data.meshes.new("Mesh")
@@ -147,7 +151,7 @@ obj = bpy.data.objects.new("Tree", me)
 bpy.context.collection.objects.link(obj)
 
 # Trunk Hyperparameters
-height *= 0.2
+height *= trunk_scale
 base_radius *= 0.2
 layers = 3
 low_polyness = 8
@@ -200,11 +204,16 @@ bmesh.ops.edgeloop_fill(bm, edges=last_edges)
 
 # Remove doubles
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
+
+# Move the mesh up
+bmesh.ops.translate(bm, vec=Vector((0, 0, height)), verts=bm.verts)
     
 # Finish up, write the bmesh into a new mesh
 me = bpy.data.meshes.new("Mesh")
 bm.to_mesh(me)
 bm.free()
+
+
 
 # Assing color
 trunk_mat = bpy.data.materials.new("trunk_mat")
