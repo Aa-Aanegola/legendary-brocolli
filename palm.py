@@ -33,6 +33,7 @@ def create_leaf(params):
     d = params["dropoff"]
     angle = params["angle"]
     thickness = params["thickness"]
+    mat = params["material"]
     
     bm = bmesh.new()
     
@@ -42,7 +43,7 @@ def create_leaf(params):
     # Create all intermediate vertices in pairs
     for i in range(1, s+1):
         y = l*i/s
-        if l*i <= s * c:
+        if l*i <= s*c:
             x = (w/2)*sin(radians(90*y/c))
             z = (c**2/(l-c)**2)*d*(sin(radians(90*y/c)))
             
@@ -58,7 +59,7 @@ def create_leaf(params):
         bmesh.ops.create_vert(bm, co=pos)
         pos.x *= -1/p
         pos.x *= random.uniform(0.90, 1.1)
-        bmesh.ops.create_vert(bm, co=pos)
+        bmesh.ops.create_vert(bm, co=pos)    
         pos.z += pos.x/w
         pos.x = 0
         bmesh.ops.create_vert(bm, co=pos)
@@ -85,6 +86,9 @@ def create_leaf(params):
     bm.to_mesh(me)
     bm.free()
 
+    # Assign the material
+    me.materials.append(mat)
+    
     # Add the mesh to the scene
     obj = bpy.data.objects.new("Leaf", me)
     mod = obj.modifiers.new(f"{obj.name}", "SOLIDIFY")
@@ -99,14 +103,27 @@ base_radius = 1
 end_radius = base_radius * (0.3 + random.uniform(-0.05, 0.05))
 layers = 8
 low_polyness = 6
-leaf_length = 6
+leaf_length = 8
 leaf_width = 1.5
 leaf_dropoff = 1.75
-leaf_count = 9
+leaf_count = 11
 leaf_elev_layers = 2 # Can be 1 to 3
 leaf_center = 2
 leaf_segments = 6
 leaf_thickness = 0.1
+
+trunk_color_hex = "A52A2A"
+trunk_color = [int(trunk_color_hex[0:2], 16)/255,
+         int(trunk_color_hex[2:4], 16)/255,
+         int(trunk_color_hex[4:6], 16)/255,
+         1]
+
+
+leaf_color_hex = "4EB036"
+leaf_color = [int(leaf_color_hex[0:2], 16)/255,
+         int(leaf_color_hex[2:4], 16)/255,
+         int(leaf_color_hex[4:6], 16)/255,
+         1]
 
 layer_list = []
 for i in range(0, layers+1):
@@ -180,17 +197,26 @@ bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
 
 # Fill Top
 bmesh.ops.edgeloop_fill(bm, edges=last_edges)
-    
+
+
 # Finish up, write the bmesh into a new mesh
 me = bpy.data.meshes.new("Mesh")
 bm.to_mesh(me)
 bm.free()
 
+# Create the material for the trunk
+trunk_mat = bpy.data.materials.new("tree_mat")
+trunk_mat.diffuse_color = trunk_color
+me.materials.append(trunk_mat)
+
 # Add the mesh to the scene
 obj = bpy.data.objects.new("Trunk", me)
 bpy.context.collection.objects.link(obj)
 
-    
+# Create a material for the leaves
+leaf_mat = bpy.data.materials.new("tree_mat")
+leaf_mat.diffuse_color = leaf_color
+
 # Create leafs
 for i in range(leaf_count):
     theta = (i * 360 / leaf_count) + (360/leaf_count) * random.uniform(-0.1, 0.1)
@@ -205,7 +231,8 @@ for i in range(leaf_count):
         "segments": leaf_segments,
         "dropoff": leaf_dropoff*random.uniform(0.95, 1.05),
         "thickness": leaf_thickness,
-        "angle": angle
+        "angle": angle,
+        "material": leaf_mat
     })
     leaf.rotation_euler = (0, 0, radians(theta))
     
