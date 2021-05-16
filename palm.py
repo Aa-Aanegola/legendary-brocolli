@@ -17,6 +17,7 @@ seed = time.time()
 random.seed(seed)
 
 # TODO: Follow bezier
+# TODO: Add coconuts
 
 def get_center(verts):
     res = Vector((0, 0, 0))
@@ -176,6 +177,10 @@ for i in range(1, layers+1):
     center = get_center(translate_verts)
     mat_y = Matrix.Rotation(radians(random.uniform(-7,7)), 3, 'Y')
     bmesh.ops.rotate(bm, verts=translate_verts, cent=center, matrix=mat_y)
+    
+    center = get_center(translate_verts)
+    mat_x = Matrix.Rotation(radians(random.uniform(-7,7)), 3, 'X')
+    bmesh.ops.rotate(bm, verts=translate_verts, cent=center, matrix=mat_x)
     
     # Translate to fix 'x' and 'z'
     center = get_center(translate_verts)
