@@ -23,28 +23,28 @@ radius_scaler = 0.6
 length_threshold = 0.05
 max_branches = 4
 min_angle = 30
-depth = 7
-seed = 0
+depth = 4
+seed = time.time()
 linear_dropoff = False
+random.seed(seed)
 
 def get_center(verts):
     res = Vector((0, 0, 0))
     for vert in verts:
-        res += vert.co
+        res += vert
     res /= len(verts)
     return res
      
 
 leaf_positions = []
-def create_branches(bm, face, curr_dep):
+def create_branches(bm, face, curr_dep, min_branch=2, max_branch=3):
     if curr_dep == depth:
-        leaf_positions.append(face.calc_center_bounds())
-        return
+        return face.calc_center_bounds()
     
     if curr_dep == 0:
         branches = 1
     else:
-        branches = max(random.randint(1, 3), min(3, curr_dep))
+        branches = max(random.randint(min_branch, max_branch), min(3, curr_dep))
         
     # Extrude
     extruded = bmesh.ops.extrude_edge_only(bm, edges=face.edges)
@@ -52,11 +52,12 @@ def create_branches(bm, face, curr_dep):
     verts = [v for v in extruded['geom'] if isinstance(v, bmesh.types.BMVert)]
     edges = [e for e in extruded['geom'] if isinstance(e, bmesh.types.BMEdge)]
     
-    center = get_center(verts)
+    center = get_center([vert.co for vert in verts])
                 
     # Rotate
     old_normal = face.normal
     normals = []
+    centers = []
     for i in range(branches):
         for j in range(100):
             new_normal = old_normal.copy()
@@ -99,9 +100,46 @@ def create_branches(bm, face, curr_dep):
                 bmesh.ops.translate(bm, verts=new_verts, vec=l*new_normal)
                 new_face = bm.faces.new(new_verts)
                 
-                create_branches(bm, new_face, curr_dep+1)
+                cent = create_branches(bm, new_face, curr_dep+1)
+                if curr_dep == depth - 1:
+                    centers.append(cent)
                 break
-
+    
+    if curr_dep == depth -1:
+        leaf_positions.append((get_center(centers), face.calc_center_bounds()))
+        
+def create_leaf(center, radius, wonkiness, subdiv=2, ):
+    bm = bmesh.new()
+    
+    bmesh.ops.create_icosphere(bm, subdivisions=subdiv, diameter=2*radius*random.uniform(0.9, 1.1))
+    
+    # Translate
+    bmesh.ops.translate(bm, verts=bm.verts, vec=center[0])
+    vec = center[0]-center[1]
+    # len = vec.length()
+    vec = vec.normalized()
+    print(radius*vec)
+    bmesh.ops.translate(bm, verts=bm.verts, vec=radius*vec)
+    
+    bm.faces.ensure_lookup_table()
+    for face in bm.faces:
+        verts = face.verts
+        norm = face.normal
+        dn = random.uniform(-wonkiness, wonkiness) * norm
+        bmesh.ops.translate(bm, verts=verts, vec=dn)
+        
+    # Finish up, write the bmesh into a new mesh
+    me = bpy.data.meshes.new("Mesh")
+    bm.to_mesh(me)
+    bm.free()
+    
+    # Add the mesh to the scene
+    obj = bpy.data.objects.new("Leaf", me)
+    bpy.context.collection.objects.link(obj)
+    bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+    
+    return obj
+     
 bm = bmesh.new()
 
 bmesh.ops.create_circle(
@@ -111,7 +149,10 @@ bmesh.ops.create_circle(
     segments=low_polyness)
 
 bm.faces.ensure_lookup_table()
-create_branches(bm, bm.faces[0], 0)
+create_branches(bm, bm.faces[0], 0, 2, 3)
+
+for leaf_position in leaf_positions:
+    create_leaf(leaf_position, 2, 0.3, 2)
 
 # Finish up, write the bmesh into a new mesh
 me = bpy.data.meshes.new("Mesh")
